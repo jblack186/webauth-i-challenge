@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const Users = require('./users/users-model.js');
 const restricted = require('./auth/restricted-middleware.js')
 
+
 server.post('/hash', (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
@@ -12,10 +13,12 @@ server.post('/hash', (req, res) => {
 
 server.post('/api/register', (req, res) => {
     let user = req.body;
-    const hash = bcrypt.hashSync(user.password);
+    const hash = bcrypt.hashSync(user.password, 10);
     user.password = hash;
     Users.add(user)
     .then(saved => {
+         //add info about user to the session
+         req.session.user = user;
         res.status(201).json(saved);
     })
 })
@@ -26,7 +29,9 @@ Users.findBy({ username })
 .first()
 .then(user => {
     if (user && bcrypt.compareSync(password, user.password)) {
-    res.status(200).json({ message: `Welcome ${user.username}`})
+        //add info about user to the session
+        req.session.user = user;
+    res.status(200).json({ message: `Welcome ${user.username}, have a cookie`})
     }
     else {
         res.status(401).json({ message: 'Invalid Credentials'})
@@ -48,7 +53,21 @@ server.get('/api/users', restricted, (req, res) => {
         res.send(err)})
 })
 
-
+server.get('/api/logout', (req, res) => {
+    if (req.session) {
+        req.session.destroy(err => {
+            if (err) {
+            res.json({
+                message: 'you can checkout but you cant leave'
+            });
+        }
+        else {
+            res.end(); 
+        }
+        })   
+        
+    }    
+})
 
 const PORT = process.env.PORT || 8000;
 
